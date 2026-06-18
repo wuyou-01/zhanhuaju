@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="闲酌序·沾花局 - 北宋宣和年间花石纲官银案，4-8人古风社交推理剧本杀">
+<meta property="og:title" content="闲酌序·沾花局 | 北宋古风剧本杀">
+<meta property="og:description" content="花石纲官银案·沉浸式社交推理">
+<meta property="og:image" content="">
+<meta property="og:type" content="website">
+<title>闲酌序·沾花局 | 北宋古风剧本杀</title>
+<script src="data.js"></script>
+<!-- Socket.IO 客户端 -->
+<script src="/socket.io/socket.io.js"></script>
+<style>
+/* ====== 北宋国画风格 · 色彩体系 ====== */
+:root{
+  --xuan-paper:#F5EDDA;--xuan-dark:#EDE3CC;--mo-ink:#2C2416;--mo-light:#4A3F2F;
+  --mo-wash:#8B7D6B;--zhu-sha:#C43E3E;--zhu-light:#E07070;--ni-jin:#C9A84C;
+  --ni-light:#E8D9A0;--shi-qing:#3A6B8A;--shi-lu:#5A7A4A;--zhe-shi:#8B5E3C;
+  --shan-shui:#6B7B6B;--seal-red:#B53434;--cloud:#D8CFB8;
+  --radius:4px;--shadow:0 2px 12px rgba(44,36,22,0.12);
+  --shadow-card:0 4px 20px rgba(44,36,22,0.15);
+  --conn-green:#4CAF50;--conn-red:#E53935;--conn-orange:#FF9800;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Noto Serif SC','Source Han Serif SC','Songti SC','SimSun','KaiTi',serif;
+  background:var(--xuan-paper);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(201,168,76,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(90,122,74,0.05) 0%, transparent 50%);
+  color:var(--mo-ink);min-height:100vh;overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+  background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;
+}
+
+/* Connection Status Bar */
+.conn-bar{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  padding:5px 12px;font-size:0.72em;text-align:center;
+  letter-spacing:1px;transition:all .3s;display:none;
+  font-family:inherit;
+}
+.conn-bar.connected{background:rgba(76,175,80,0.15);color:var(--conn-green)}
+.conn-bar.disconnected{background:rgba(229,57,53,0.15);color:var(--conn-red)}
+.conn-bar.reconnecting{background:rgba(255,152,0,0.15);color:var(--conn-orange);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ====== Pages ====== */
+.page{display:none;min-height:100vh;padding:16px;padding-bottom:90px;padding-top:30px;position:relative;z-index:1}
+.page.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ====== Decorative Elements ====== */
+.seal-stamp{display:inline-block;border:2px solid var(--seal-red);color:var(--seal-red);padding:4px 10px;font-size:0.85em;border-radius:2px;letter-spacing:2px;transform:rotate(-3deg);font-weight:bold}
+.divider-cloud{text-align:center;color:var(--ni-jin);font-size:1.2em;margin:16px 0;letter-spacing:8px;opacity:0.5}
+
+/* ====== Cover Page ====== */
+.cover{text-align:center;padding-top:8vh;position:relative}
+.cover::before{content:'';position:absolute;top:4vh;left:50%;transform:translateX(-50%);width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.12) 0%,transparent 70%)}
+.cover-mountain{font-size:4em;opacity:0.06;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;letter-spacing:8px;white-space:nowrap}
+.cover-lantern{font-size:2em;margin-bottom:12px;animation:sway 3s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.cover-title-main{font-size:2.8em;color:var(--mo-ink);letter-spacing:8px;text-shadow:2px 2px 0 rgba(201,168,76,0.15);margin:8px 0;font-weight:bold}
+.cover-subtitle{font-size:0.95em;color:var(--mo-wash);line-height:2;margin-bottom:8px;letter-spacing:2px}
+.cover-info{display:inline-block;padding:8px 24px;border-top:1px solid var(--ni-jin);border-bottom:1px solid var(--ni-jin);color:var(--mo-light);font-size:0.8em;letter-spacing:1px;margin-bottom:28px}
+.cover-buttons{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cover-btn{width:85%;max-width:320px;padding:14px 24px;background:transparent;cursor:pointer;font-family:inherit;font-size:1em;letter-spacing:2px;transition:all .25s;border:1.5px solid var(--mo-wash);color:var(--mo-ink);position:relative;overflow:hidden}
+.cover-btn::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,transparent 40%,rgba(201,168,76,0.08) 50%,transparent 60%);opacity:0;transition:opacity .3s}
+.cover-btn:active::before,.cover-btn:hover::before{opacity:1}
+.cover-btn:active{transform:scale(0.97)}
+.cover-btn.primary{background:var(--mo-ink);color:var(--xuan-paper);border-color:var(--mo-ink);font-weight:bold}
+.cover-btn.primary:active{background:var(--mo-light)}
+.cover-btn.accent{border-color:var(--ni-jin);color:var(--ni-jin)}
+.cover-btn.accent:active{background:rgba(201,168,76,0.1)}
+.cover-link-btn{display:inline-block;margin-top:16px;padding:10px 20px;border:1px dashed var(--mo-wash);color:var(--mo-wash);font-size:0.8em;cursor:pointer;letter-spacing:1px;transition:all .2s}
+.cover-link-btn:active{border-color:var(--ni-jin);color:var(--ni-jin)}
+.cover-conn-indicator{display:inline-flex;align-items:center;gap:6px;font-size:0.72em;color:var(--mo-wash);margin-top:16px;letter-spacing:1px}
+.conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.conn-dot.online{background:var(--conn-green);box-shadow:0 0 6px var(--conn-green)}
+.conn-dot.offline{background:var(--conn-red);box-shadow:0 0 6px var(--conn-red)}
+
+/* ====== Role Select ====== */
+.page-title{text-align:center;font-size:1.4em;color:var(--mo-ink);letter-spacing:4px;margin-bottom:4px;font-weight:bold}
+.page-subtitle{text-align:center;font-size:0.78em;color:var(--mo-wash);margin-bottom:20px;letter-spacing:1px}
+.role-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}
+.role-card{background:linear-gradient(180deg, var(--xuan-paper) 0%, var(--xuan-dark) 100%);border:1px solid var(--cloud);padding:18px 12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;box-shadow:var(--shadow)}
+.role-card:active{transform:scale(0.96);box-shadow:0 1px 4px rgba(44,36,22,0.1)}
+.role-card.taken{opacity:0.35;pointer-events:none;filter:grayscale(0.5)}
+.role-card.taken::after{content:'已选';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.1em;color:var(--seal-red);font-weight:bold;letter-spacing:2px;padding:4px 12px;border:2px solid var(--seal-red);background:rgba(245,237,218,0.85)}
+.role-emoji{font-size:2.2em;margin-bottom:6px}
+.role-name{font-size:1.15em;color:var(--mo-ink);letter-spacing:2px;font-weight:bold}
+.role-public-id{font-size:0.75em;color:var(--mo-wash);margin-top:2px;letter-spacing:1px}
+.role-color-bar{height:2px;width:40px;margin:8px auto 0;opacity:0.6}
+.role-mine-tag{position:absolute;top:8px;right:8px;color:var(--ni-jin);font-size:0.7em;letter-spacing:1px}
+
+/* ====== Role Detail ====== */
+.role-header{text-align:center;padding:20px 16px 16px;border-bottom:1px solid var(--cloud);margin-bottom:16px;position:relative}
+.role-header::after{content:'';position:absolute;bottom:-1px;left:30%;right:30%;height:2px;background:linear-gradient(90deg,transparent,var(--ni-jin),transparent)}
+.role-header-name{font-size:1.8em;color:var(--mo-ink);letter-spacing:4px;font-weight:bold}
+.role-header-sub{font-size:0.8em;color:var(--mo-wash);margin-top:4px;letter-spacing:1px}
+.role-header-poem{font-size:0.85em;color:var(--mo-light);margin-top:10px;font-style:italic;letter-spacing:1px;line-height:1.6}
+.role-header .seal-stamp{margin-top:10px}
+
+/* ====== Tabs ====== */
+.tab-bar{display:flex;overflow-x:auto;gap:0;margin-bottom:16px;border-bottom:1px solid var(--cloud);-webkit-overflow-scrolling:touch}
+.tab-btn{flex:none;padding:10px 16px;color:var(--mo-wash);font-size:0.85em;border:none;background:transparent;cursor:pointer;font-family:inherit;letter-spacing:1px;position:relative;transition:all .2s;white-space:nowrap}
+.tab-btn.active{color:var(--mo-ink);font-weight:bold}
+.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:20%;right:20%;height:2px;background:var(--ni-jin)}
+.tab-panel{display:none;padding:4px 0}
+.tab-panel.active{display:block;animation:fadeIn .25s ease}
+
+/* ====== Identity Card ====== */
+.id-card{background:linear-gradient(180deg, var(--xuan-paper) 0%, #F8F2E5 100%);border:1px solid var(--cloud);box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:12px}
+.id-front{padding:24px 20px;text-align:center;border-bottom:1px dashed var(--cloud);position:relative}
+.id-front::before{content:'角色卡';position:absolute;top:8px;left:12px;font-size:0.7em;color:var(--mo-wash);letter-spacing:2px}
+.id-front-name{font-size:1.5em;color:var(--mo-ink);letter-spacing:4px;font-weight:bold}
+.id-front-public{font-size:0.85em;color:var(--mo-wash);margin:6px 0;letter-spacing:2px}
+.id-front-poem{font-size:0.85em;color:var(--mo-light);font-style:italic;letter-spacing:1px}
+.id-front-pattern{font-size:0.75em;color:var(--mo-wash);margin-top:8px}
+.id-back{padding:20px;font-size:0.9em;line-height:2;background:rgba(0,0,0,0.02)}
+.id-label{font-size:0.7em;color:var(--mo-wash);letter-spacing:2px;margin-bottom:4px;margin-top:12px;padding-bottom:2px;border-bottom:1px dotted var(--cloud)}
+.id-label:first-child{margin-top:0}
+.id-value{color:var(--mo-ink);line-height:1.8}
+.id-value.secret{color:var(--seal-red);padding:8px 12px;background:rgba(196,62,62,0.04);border-left:2px solid var(--seal-red)}
+
+/* ====== Script ====== */
+.act-selector{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.act-btn{padding:10px 18px;border:1px solid var(--cloud);background:transparent;color:var(--mo-wash);cursor:pointer;font-family:inherit;font-size:0.88em;letter-spacing:1px;transition:all .2s;position:relative}
+.act-btn.active{background:var(--mo-ink);color:var(--xuan-paper);border-color:var(--mo-ink);font-weight:bold}
+.act-btn.locked{opacity:0.3;cursor:not-allowed;position:relative}
+.act-btn.locked::after{content:'🔒';position:absolute;right:4px;top:4px;font-size:0.6em}
+.act-btn.just-unlocked{border-color:var(--ni-jin);color:var(--ni-jin);animation:glowGold 2s ease-in-out infinite}
+@keyframes glowGold{0%,100%{box-shadow:0 0 4px rgba(201,168,76,0.3)}50%{box-shadow:0 0 12px rgba(201,168,76,0.6)}}
+.act-indicator{font-size:0.75em;color:var(--shi-qing);text-align:center;margin-bottom:10px;letter-spacing:1px}
+.script-content{background:linear-gradient(180deg,#FBF8F0 0%,var(--xuan-paper) 100%);border:1px solid var(--cloud);padding:20px 16px;font-size:0.9em;line-height:2.2;white-space:pre-wrap;max-height:55vh;overflow-y:auto;letter-spacing:0.5px;box-shadow:inset 0 0 30px rgba(44,36,22,0.03)}
+.script-lock{text-align:center;padding:60px 20px;color:var(--mo-wash)}
+.script-lock-icon{font-size:2.5em;margin-bottom:12px;opacity:0.6}
+.script-lock-text{font-size:0.9em;letter-spacing:1px;margin-bottom:4px}
+.script-lock-hint{font-size:0.75em;color:var(--mo-wash);letter-spacing:1px}
+.refresh-btn{display:inline-block;margin-top:12px;padding:8px 18px;border:1px solid var(--ni-jin);color:var(--ni-jin);background:transparent;cursor:pointer;font-family:inherit;font-size:0.8em;letter-spacing:1px;transition:all .2s}
+.refresh-btn:active{background:rgba(201,168,76,0.1)}
+.sync-hint{font-size:0.72em;color:var(--shi-qing);text-align:center;padding:6px;letter-spacing:1px;display:none}
+.sync-hint.show{display:block;animation:fadeIn .5s ease}
+
+/* ====== Cards ====== */
+.card-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.game-card{background:linear-gradient(180deg,#FBF8F0 0%,var(--xuan-paper) 100%);border:1px solid var(--cloud);box-shadow:var(--shadow);cursor:pointer;transition:all .25s;overflow:hidden;position:relative}
+.game-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--ni-jin),var(--zhu-sha),var(--ni-jin));opacity:0.3}
+.game-card.flipped .card-front{display:none}
+.game-card .card-back{display:none}
+.game-card.flipped .card-back{display:block}
+.card-front,.card-back{padding:16px}
+.card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.card-icon{font-size:1.2em}
+.card-title{font-weight:bold;color:var(--mo-ink);font-size:1em;letter-spacing:1px}
+.card-meta{font-size:0.7em;color:var(--mo-wash);letter-spacing:1px;margin-bottom:8px}
+.card-content{font-size:0.85em;line-height:1.8;color:var(--mo-light)}
+.card-detail{font-size:0.85em;line-height:1.8;color:var(--mo-ink)}
+.card-flip-hint{text-align:center;font-size:0.7em;color:var(--mo-wash);margin-top:10px;letter-spacing:1px}
+.card-limit{font-size:0.75em;color:var(--seal-red);margin-top:8px;padding-top:8px;border-top:1px dotted var(--cloud)}
+.card-locked{opacity:0.4;cursor:default}
+.card-locked .card-flip-hint{color:var(--mo-wash)}
+
+/* ====== Silver ====== */
+.silver-panel{text-align:center}
+.silver-total-card{background:linear-gradient(180deg,#FBF8F0 0%,var(--xuan-paper) 100%);border:1px solid var(--cloud);padding:24px;margin-bottom:16px;box-shadow:var(--shadow-card)}
+.silver-total-amount{font-size:3em;color:var(--ni-jin);font-weight:bold;letter-spacing:4px}
+.silver-total-unit{font-size:0.8em;color:var(--mo-wash);letter-spacing:1px}
+.silver-breakdown{display:flex;justify-content:center;gap:20px;margin-top:16px;flex-wrap:wrap}
+.silver-denom{text-align:center;padding:8px 16px;border:1px solid var(--cloud);background:rgba(201,168,76,0.04)}
+.silver-denom-val{font-size:1.3em;color:var(--mo-ink);font-weight:bold}
+.silver-denom-label{font-size:0.7em;color:var(--mo-wash);letter-spacing:1px}
+.silver-desc{font-size:0.8em;color:var(--mo-wash);margin-top:12px;letter-spacing:1px;line-height:1.6}
+
+.info-card{background:var(--xuan-paper);border:1px solid var(--cloud);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.info-card-title{font-size:0.95em;color:var(--mo-ink);font-weight:bold;letter-spacing:2px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--cloud)}
+.info-card-content{font-size:0.82em;line-height:2;color:var(--mo-light)}
+
+/* ====== Host Console ====== */
+.host-panel{background:linear-gradient(180deg,#FBF8F0 0%,var(--xuan-paper) 100%);border:1px solid var(--cloud);padding:16px;box-shadow:var(--shadow-card)}
+.host-title{text-align:center;font-size:1.3em;color:var(--mo-ink);letter-spacing:4px;margin-bottom:6px;font-weight:bold}
+.host-acts-bar{display:flex;justify-content:center;gap:0;margin:16px 0}
+.host-act-step{flex:1;max-width:80px;text-align:center;padding:12px 4px;border:1px solid var(--cloud);cursor:pointer;transition:all .2s;font-family:inherit;font-size:0.78em;background:transparent;color:var(--mo-wash);letter-spacing:1px;position:relative}
+.host-act-step:not(:last-child)::after{content:'→';position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:var(--mo-wash);font-size:0.7em}
+.host-act-step.done{background:rgba(90,122,74,0.1);color:var(--shi-lu);border-color:rgba(90,122,74,0.3)}
+.host-act-step.done::before{content:'✓ '}
+.host-act-step.current{background:rgba(58,107,138,0.1);color:var(--shi-qing);border-color:rgba(58,107,138,0.3);font-weight:bold}
+.host-act-step:active{background:var(--mo-ink);color:var(--xuan-paper)}
+.host-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--cloud)}
+.host-section-title{font-size:0.95em;color:var(--mo-ink);font-weight:bold;letter-spacing:2px;margin-bottom:12px}
+.host-section summary{cursor:pointer;color:var(--mo-light);font-size:0.88em;padding:6px 0;letter-spacing:1px;transition:color .2s}
+.host-section summary:hover{color:var(--ni-jin)}
+.host-section details{margin-bottom:8px}
+.host-text{font-size:0.82em;line-height:2;color:var(--mo-light);white-space:pre-wrap;max-height:40vh;overflow-y:auto;padding:12px;background:rgba(0,0,0,0.02)}
+.host-shop-item,.host-player-line{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(139,125,107,0.1);font-size:0.82em}
+.host-input{background:var(--xuan-paper);border:1px solid var(--cloud);color:var(--mo-ink);padding:10px 12px;font-family:inherit;font-size:0.88em;width:100%;margin:6px 0;letter-spacing:1px}
+.host-input:focus{outline:none;border-color:var(--ni-jin)}
+.host-btn{padding:10px 20px;background:var(--mo-ink);color:var(--xuan-paper);border:none;cursor:pointer;font-family:inherit;font-size:0.9em;letter-spacing:2px;transition:all .2s}
+.host-btn:active{background:var(--mo-light)}
+.host-btn-warn{background:transparent;border:1px solid var(--seal-red);color:var(--seal-red);margin-top:12px}
+.host-btn-warn:active{background:rgba(196,62,62,0.05)}
+.player-status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.player-status.online{background:var(--conn-green)}
+.player-status.offline{background:var(--conn-red)}
+
+/* ====== Modals ====== */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(44,36,22,0.7);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.show{display:flex;animation:fadeIn .2s ease}
+.modal-box{background:linear-gradient(180deg,#FBF8F0 0%,var(--xuan-paper) 100%);border:1px solid var(--cloud);box-shadow:0 8px 40px rgba(44,36,22,0.25);padding:24px;width:90%;max-width:380px;max-height:80vh;overflow-y:auto}
+.modal-box h3{color:var(--mo-ink);letter-spacing:3px;margin-bottom:16px;text-align:center;font-size:1.2em}
+.modal-box p{font-size:0.85em;line-height:2;color:var(--mo-light);margin-bottom:8px;letter-spacing:0.5px}
+.modal-btn{display:block;width:100%;padding:10px;margin:6px 0;border:1px solid var(--cloud);background:transparent;color:var(--mo-ink);cursor:pointer;font-family:inherit;font-size:0.88em;letter-spacing:2px;text-align:left;transition:all .2s}
+.modal-btn:active{border-color:var(--ni-jin);background:rgba(201,168,76,0.05)}
+.modal-close-btn{display:block;width:100%;margin-top:12px;padding:10px;border:1px solid var(--cloud);background:transparent;color:var(--mo-wash);cursor:pointer;font-family:inherit;font-size:0.85em;letter-spacing:2px}
+.modal-close-btn:active{background:rgba(0,0,0,0.03)}
+
+/* ====== Bottom Nav ====== */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,var(--xuan-dark) 0%,rgba(245,237,218,0.95) 100%);border-top:1px solid var(--cloud);display:none;z-index:50;padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(10px)}
+.bottom-nav.show{display:flex}
+.nav-btn{flex:1;padding:8px 0;text-align:center;color:var(--mo-wash);font-size:0.7em;cursor:pointer;border:none;background:transparent;font-family:inherit;letter-spacing:1px}
+.nav-btn.active{color:var(--mo-ink);font-weight:bold}
+.nav-btn-icon{font-size:1.3em;margin-bottom:2px;display:block}
+
+/* ====== Toast ====== */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--mo-ink);color:var(--xuan-paper);padding:14px 28px;font-size:0.9em;z-index:200;letter-spacing:2px;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 4px 20px rgba(44,36,22,0.3)}
+.toast.show{opacity:1}
+
+/* ====== Scrollbar ====== */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--mo-wash);border-radius:2px;opacity:0.3}
+</style>
+</head>
+<body>
+
+<!-- Connection Status Bar -->
+<div class="conn-bar" id="connBar">🔄 连接中...</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- About Modal -->
+<div class="modal-overlay" id="aboutModal">
+  <div class="modal-box">
+    <h3>闲酌序 · 沾花局</h3>
+    <p>北宋宣和年间，花石纲官银贪墨大案。十万两纹银不翼而飞，禁军教头赵行之下落不明，户部侍郎柳庭芳含冤问斩。</p>
+    <p>三年后的今夜，八位互不相识的客人齐聚闲酌序酒馆。每个人都有不可告人的秘密，每个人都带着三年前的伤痕。</p>
+    <p>这场「沾花局」，是酒局，是棋局，更是生死之局。</p>
+    <p style="color:var(--mo-wash);margin-top:12px;font-size:0.78em">4-8人 · 3.5-4小时 · 古风社交推理剧本杀</p>
+    <button class="modal-close-btn" onclick="closeModal('aboutModal')">关 闭</button>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal-box">
+    <h3>发送角色专属链接</h3>
+    <p style="font-size:0.78em;color:var(--mo-wash);text-align:center;margin-bottom:16px">选择角色，生成专属链接发送给对应玩家</p>
+    <div id="shareRoleList"></div>
+    <button class="modal-close-btn" onclick="closeModal('shareModal')">关 闭</button>
+  </div>
+</div>
+
+<!-- ====== Pages ====== -->
+
+<!-- Cover Page -->
+<div class="page active" id="pageCover">
+  <div class="cover">
+    <div class="cover-mountain">⛰️ 🌊 🏔️</div>
+    <div class="cover-lantern">🏮</div>
+    <div class="cover-title-main">沾 花 局</div>
+    <div class="cover-subtitle">闲酌序 · 北宋宣和年间</div>
+    <div class="cover-info">花石纲 · 官银案</div>
+    <div class="cover-buttons">
+      <button class="cover-btn primary" onclick="showPage('pageSelect')">玩家入场</button>
+      <button class="cover-btn accent" onclick="enterHost()">主持人入场</button>
+      <button class="cover-btn" onclick="openShareModal()">发送角色链接</button>
+      <div class="cover-link-btn" onclick="copyRoomLink()">生成房间邀请链接</div>
+      <button class="cover-btn" onclick="openModal('aboutModal')" style="margin-top:4px;font-size:0.78em;padding:8px 20px;letter-spacing:1px;border-color:var(--cloud);color:var(--mo-wash)">关于本作</button>
+    </div>
+    <div class="cover-conn-indicator" id="coverConnStatus">
+      <span class="conn-dot offline" id="coverConnDot"></span>
+      <span id="coverConnText">等待连接...</span>
+    </div>
+  </div>
+</div>
+
+<!-- Role Select Page -->
+<div class="page" id="pageSelect">
+  <div class="page-title">选择角色</div>
+  <div class="page-subtitle">选定后不可更改，请慎重选择</div>
+  <div class="role-grid" id="roleGrid"></div>
+  <div style="text-align:center;margin-top:16px">
+    <button class="refresh-btn" onclick="requestStateFromServer()">刷新角色状态</button>
+  </div>
+</div>
+
+<!-- Role Detail Page -->
+<div class="page" id="pageRole">
+  <div id="roleContent"></div>
+</div>
+
+<!-- Host Console Page -->
+<div class="page" id="pageHost">
+  <div class="host-title">主持人控制台</div>
+  <div class="page-subtitle">掌控全局 · 推进剧情</div>
+  <div id="hostContent"></div>
+</div>
+
+<!-- Bottom Navigation -->
+<div class="bottom-nav" id="bottomNav">
+  <div class="nav-btn active" onclick="showPage('pageCover')" id="navHome"><span class="nav-btn-icon">🏠</span>首页</div>
+  <div class="nav-btn" onclick="showPage('pageSelect')" id="navRoles"><span class="nav-btn-icon">🎭</span>角色</div>
+  <div class="nav-btn" onclick="goToMyRole()" id="navMyRole"><span class="nav-btn-icon">📜</span>我的剧本</div>
+  <div class="nav-btn" onclick="goToHost()" id="navHost"><span class="nav-btn-icon">📋</span>主持</div>
+</div>
+
+<script>
+// =============================================
+// Socket.IO 实时同步客户端
+// =============================================
+
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 10000
+});
+
+// 运行时状态
+let serverState = null;          // 服务端权威状态
+let currentRole = null;         // 当前角色ID
+let currentAct = {};            // { roleId: actNum }
+let hostLoggedIn = false;       // 主持人登录状态
+let isConnected = false;        // Socket连接状态
+let myRole = localStorage.getItem('zhj_myRole') || ''; // 仅存角色身份
+
+// =============================================
+// Socket 事件处理
+// =============================================
+
+socket.on('connect', () => {
+  isConnected = true;
+  updateConnStatus('connected', '实时连接已建立');
+  console.log('🔗 Socket 已连接:', socket.id);
+
+  // 连接后请求当前状态
+  socket.emit('get_state');
+
+  // 如果之前选了角色，重新关联
+  if (myRole) {
+    socket.emit('select_role', { roleId: myRole, force: true });
+  }
+});
+
+socket.on('disconnect', () => {
+  isConnected = false;
+  updateConnStatus('disconnected', '连接断开，正在重连...');
+});
+
+socket.on('reconnecting', (attempt) => {
+  updateConnStatus('reconnecting', '重连中 (' + attempt + ')...');
+});
+
+socket.on('reconnect', () => {
+  updateConnStatus('connected', '已重新连接');
+  socket.emit('get_state');
+  if (myRole) socket.emit('select_role', { roleId: myRole, force: true });
+});
+
+// 收到完整状态
+socket.on('state_full', (state) => {
+  serverState = state;
+  applyServerState();
+});
+
+// 收到增量状态更新
+socket.on('state_update', (update) => {
+  if (!serverState) serverState = {};
+  Object.assign(serverState, update);
+  applyServerState();
+});
+
+// 角色选择结果
+socket.on('role_result', (result) => {
+  if (result.success) {
+    localStorage.setItem('zhj_myRole', result.roleId);
+    myRole = result.roleId;
+    currentRole = result.roleId;
+    if (result.maxAct) serverState = serverState || {};
+    if (result.maxAct) serverState.maxAct = result.maxAct;
+    currentAct[result.roleId] = '1';
+    renderRolePage(currentRole);
+    showPage('pageRole');
+    var role = GAME_DATA.roles.find(function(r){return r.id===result.roleId});
+    toast('已选择：' + (role ? role.name : result.roleId));
+  } else {
+    toast(result.message || '角色选择失败');
+  }
+});
+
+// 主持人登录结果
+socket.on('host_login_result', (result) => {
+  if (result.success) {
+    hostLoggedIn = true;
+    if (result.fullState) {
+      serverState = result.fullState;
+    }
+    renderHostPage();
+    showPage('pageHost');
+    toast('主持人已登录');
+  } else {
+    toast(result.message || '密码错误');
+  }
+});
+
+// 幕次推进通知
+socket.on('act_advanced', (data) => {
+  if (!serverState) serverState = {};
+  serverState.maxAct = data.maxAct || data.act;
+  serverState.lastPush = data.lastPush;
+
+  var actNames = ['','入局','寻踪','惊变','终局'];
+  var msg = '📢 主持人已推进至第' + ['一','二','三','四'][data.act-1] + '幕：' + (actNames[data.act] || '');
+  toast(msg);
+
+  // 如果当前在角色页面，自动刷新
+  if (currentRole) {
+    refreshRoleView();
+  }
+});
+
+// 物品发放通知
+socket.on('item_given', (data) => {
+  if (!serverState) serverState = {};
+  if (!serverState.hostActions) serverState.hostActions = { silverGiven:{}, cluesGiven:{}, skillsGiven:{} };
+  if (data.hostActions) serverState.hostActions = data.hostActions;
+
+  // 如果发放给当前角色，自动刷新
+  if (currentRole && data.roleId === currentRole) {
+    var typeMap = { silver: '银两', clue: '线索卡', skill: '技能卡' };
+    toast('✨ 收到新' + (typeMap[data.type] || '物品') + '！');
+    refreshRoleView();
+  }
+});
+
+// 游戏重置
+socket.on('game_reset', (data) => {
+  serverState = null;
+  currentRole = null;
+  currentAct = {};
+  hostLoggedIn = false;
+  localStorage.removeItem('zhj_myRole');
+  myRole = '';
+  localStorage.removeItem('zhj_hostLoggedIn');
+  toast('游戏已重置');
+  showPage('pageCover');
+});
+
+// 玩家断线通知
+socket.on('player_disconnected', (data) => {
+  // 主持人端可刷新显示
+  if (hostLoggedIn) {
+    setTimeout(() => renderHostPage(), 500);
+  }
+});
+
+// 错误
+socket.on('error', (data) => {
+  toast(data.message || '操作失败');
+});
+
+// =============================================
+// 连接状态指示器
+// =============================================
+
+function updateConnStatus(status, text) {
+  var bar = document.getElementById('connBar');
+  var dot = document.getElementById('coverConnDot');
+  var txt = document.getElementById('coverConnText');
+
+  bar.className = 'conn-bar ' + status;
+  bar.textContent = text;
+
+  if (status === 'connected') {
+    setTimeout(() => { bar.style.display = 'none'; }, 2000);
+  } else {
+    bar.style.display = 'block';
+  }
+
+  if (dot) { dot.className = 'conn-dot ' + (status === 'connected' ? 'online' : 'offline'); }
+  if (txt) { txt.textContent = status === 'connected' ? '实时连接' : status === 'reconnecting' ? '重连中...' : '离线'; }
+
+  // 更新导航栏连接状态
+  var navHost = document.getElementById('navHost');
+  if (navHost) {
+    var existing = navHost.querySelector('.conn-dot-small');
+    if (existing) existing.remove();
+    if (status !== 'connected') {
+      var smallDot = document.createElement('span');
+      smallDot.className = 'conn-dot-small';
+      smallDot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--conn-red);margin-left:4px;vertical-align:middle';
+      navHost.appendChild(smallDot);
+    }
+  }
+}
+
+// =============================================
+// 应用服务端状态到本地
+// =============================================
+
+function applyServerState() {
+  if (!serverState) return;
+
+  // 更新角色占用状态
+  renderRoleGrid();
+
+  // 如果当前在角色页面，刷新
+  if (currentRole && document.getElementById('pageRole').classList.contains('active')) {
+    currentAct[currentRole] = (serverState.players && serverState.players[currentRole])
+      ? (serverState.players[currentRole].act || '1') : '1';
+    renderRolePage(currentRole);
+  }
+
+  // 如果当前在主持人页面，刷新
+  if (hostLoggedIn && document.getElementById('pageHost').classList.contains('active')) {
+    renderHostPage();
+  }
+}
+
+// =============================================
+// 导航
+// =============================================
+
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  var target = document.getElementById(pageId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  var navMap = { pageCover: 'navHome', pageSelect: 'navRoles', pageRole: 'navMyRole', pageHost: 'navHost' };
+  var navId = navMap[pageId];
+  if (navId) document.getElementById(navId).classList.add('active');
+
+  var bn = document.getElementById('bottomNav');
+  bn.style.display = (pageId === 'pageCover') ? 'none' : 'flex';
+
+  if (pageId === 'pageSelect') renderRoleGrid();
+  if (pageId === 'pageRole' && currentRole) refreshRoleView();
+  if (pageId === 'pageHost' && hostLoggedIn) renderHostPage();
+}
+
+function goToMyRole() {
+  if (currentRole) { refreshRoleView(); showPage('pageRole'); }
+  else showPage('pageSelect');
+}
+
+function goToHost() {
+  if (hostLoggedIn) showPage('pageHost');
+  else enterHost();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// =============================================
+// 从服务端请求当前状态
+// =============================================
+
+function requestStateFromServer() {
+  if (isConnected) {
+    socket.emit('get_state');
+    toast('正在同步...');
+  } else {
+    toast('未连接服务器，请稍候');
+  }
+}
+
+// =============================================
+// 角色选择
+// =============================================
+
+function renderRoleGrid() {
+  var grid = document.getElementById('roleGrid');
+  if (!grid) return;
+
+  var taken = (serverState && serverState.taken) || {};
+
+  grid.innerHTML = GAME_DATA.roles.map(function(r) {
+    var isTaken = !!taken[r.id];
+    var isMe = myRole === r.id;
+    return '<div class="role-card' + (isTaken && !isMe ? ' taken' : '') + '"' +
+      ((isTaken && !isMe) ? '' : ' onclick="selectRole(\'' + r.id + '\')"') +
+      ' style="border-color:' + r.color + '">' +
+      '<div class="role-emoji">' + r.emoji + '</div>' +
+      '<div class="role-name">' + r.name + '</div>' +
+      '<div class="role-public-id">' + r.publicId + '</div>' +
+      '<div class="role-color-bar" style="background:' + r.color + '"></div>' +
+      (isMe ? '<div class="role-mine-tag">✓ 我</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function selectRole(roleId) {
+  if (!isConnected) { toast('未连接服务器，请等待连接...'); return; }
+
+  var taken = (serverState && serverState.taken) || {};
+
+  if (taken[roleId]) {
+    toast('该角色已被其他玩家选择');
+    return;
+  }
+
+  // 如果更换角色
+  if (myRole && myRole !== roleId) {
+    if (!confirm('确定更换角色？之前的角色将释放。')) return;
+    socket.emit('release_role', { roleId: myRole });
+  }
+
+  // 发送到服务端
+  socket.emit('select_role', { roleId: roleId, force: false });
+}
+
+// =============================================
+// 角色详情页
+// =============================================
+
+function refreshRoleView() {
+  if (!currentRole) return;
+  if (serverState && serverState.players && serverState.players[currentRole]) {
+    currentAct[currentRole] = serverState.players[currentRole].act || '1';
+  } else {
+    currentAct[currentRole] = '1';
+  }
+  renderRolePage(currentRole);
+}
+
+function renderRolePage(roleId) {
+  var role = GAME_DATA.roles.find(function(r) { return r.id === roleId; });
+  if (!role) return;
+
+  var act = currentAct[roleId] || '1';
+  var maxAct = (serverState && serverState.maxAct) ? serverState.maxAct : 1;
+
+  var html = '<div class="role-header">' +
+    '<div class="role-header-name">' + role.emoji + ' ' + role.name + '</div>' +
+    '<div class="role-header-sub">' + role.publicId + ' · ' + role.colorName + '</div>' +
+    '<div class="role-header-poem">「' + role.poem + '」</div>' +
+    '<div class="seal-stamp">' + roleId + ' 号角色</div>' +
+  '</div>';
+
+  // 同步状态提示
+  if (!isConnected) {
+    html += '<div style="text-align:center;padding:8px;background:rgba(229,57,53,0.08);color:var(--conn-red);font-size:0.75em;letter-spacing:1px;margin-bottom:8px">⚠️ 离线模式 · 无法接收实时更新</div>';
+  }
+  html += '<div style="text-align:right;margin-bottom:8px">' +
+    '<button class="refresh-btn" onclick="refreshRoleView()" style="font-size:0.72em">刷新状态</button>' +
+  '</div>';
+
+  // Tabs
+  html += '<div class="tab-bar">' +
+    '<div class="tab-btn active" onclick="switchTab(\'identity\',this)">身份卡</div>' +
+    '<div class="tab-btn" onclick="switchTab(\'script\',this)">分幕剧本</div>' +
+    '<div class="tab-btn" onclick="switchTab(\'skills\',this)">技能卡</div>' +
+    '<div class="tab-btn" onclick="switchTab(\'clues\',this)">线索卡</div>' +
+    '<div class="tab-btn" onclick="switchTab(\'silver\',this)">银票</div>' +
+  '</div>';
+
+  // --- Identity Panel ---
+  html += '<div class="tab-panel active" id="panel-identity">' +
+    '<div class="id-card">' +
+      '<div class="id-front">' +
+        '<div class="id-front-name" style="color:' + role.color + '">' + role.name + '</div>' +
+        '<div class="id-front-public">' + role.publicId + '</div>' +
+        '<div class="id-front-poem">「' + role.poem + '」</div>' +
+        '<div class="id-front-pattern">纹样：' + role.pattern + '</div>' +
+      '</div>' +
+      '<div class="id-back">' +
+        '<div class="id-label">公开背景（其他玩家可知）</div>' +
+        '<div class="id-value">' + escapeHtml(role.background) + '</div>' +
+        '<div class="id-label">隐秘真相（仅你可知）</div>' +
+        '<div class="id-value secret">' + escapeHtml(role.secret) + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  // --- Script Panel ---
+  html += '<div class="tab-panel" id="panel-script">' +
+    '<div class="act-selector">';
+  for (var i = 1; i <= 4; i++) {
+    var unlocked = i <= maxAct;
+    var isActive = i === parseInt(act);
+    html += '<button class="act-btn' + (isActive ? ' active' : '') + (!unlocked ? ' locked' : '') + '"' +
+      (unlocked ? ' onclick="selectAct(\'' + roleId + '\',' + i + ')"' : '') + '>' +
+      '第' + ['一','二','三','四'][i-1] + '幕' +
+    '</button>';
+  }
+  html += '</div>';
+
+  if (parseInt(act) <= maxAct && role.scripts[act]) {
+    html += '<div class="act-indicator">当前：第' + ['一','二','三','四'][parseInt(act)-1] + '幕 · ' +
+      ['入局','寻踪','惊变','终局'][parseInt(act)-1] + '</div>';
+    html += '<div class="script-content">' + escapeHtml(role.scripts[act]) + '</div>';
+  } else if (parseInt(act) > maxAct) {
+    html += '<div class="script-lock">' +
+      '<div class="script-lock-icon">📜</div>' +
+      '<div class="script-lock-text">此幕尚未解锁</div>' +
+      '<div class="script-lock-hint">等待主持人推进剧情（最多2秒自动同步）</div>' +
+      '<button class="refresh-btn" onclick="requestStateFromServer()">手动刷新</button>' +
+    '</div>';
+  } else {
+    html += '<div class="script-lock">' +
+      '<div class="script-lock-icon">📜</div>' +
+      '<div class="script-lock-text">剧本加载中...</div>' +
+    '</div>';
+  }
+  html += '</div>';
+
+  // --- Skills Panel ---
+  html += '<div class="tab-panel" id="panel-skills"><div class="card-grid">';
+  if (role.initialSkills && role.initialSkills.length > 0) {
+    role.initialSkills.forEach(function(sk) {
+      var card = GAME_DATA.skillCards.find(function(s) { return s.name === sk.name; });
+      if (card) html += renderSkillCard(card, sk.reason);
+    });
+  }
+  // 主持人额外发放的技能
+  var hostSkills = (serverState && serverState.hostActions && serverState.hostActions.skillsGiven && serverState.hostActions.skillsGiven[roleId]) || [];
+  hostSkills.forEach(function(skName) {
+    var card = GAME_DATA.skillCards.find(function(s) { return s.name === skName; });
+    if (card) html += renderSkillCard(card, '主持人发放');
+  });
+  // 特殊机制
+  var special = GAME_DATA.specialMechanics[roleId];
+  if (special) {
+    html += '<div class="game-card" onclick="this.classList.toggle(\'flipped\')">' +
+      '<div class="card-front">' +
+        '<div class="card-header"><span class="card-icon">⚡</span><span class="card-title">' + special.name + '（专属机制）</span></div>' +
+        '<div class="card-content">' + special.desc + '</div>' +
+        '<div class="card-flip-hint">点击查看详细规则 ↓</div>' +
+      '</div>' +
+      '<div class="card-back">' +
+        '<div class="card-header"><span class="card-icon">⚡</span><span class="card-title">' + special.name + '</span></div>' +
+        (special.success ? '<div class="card-content" style="color:var(--shi-lu)">✅ 成功：' + special.success + '</div>' : '') +
+        (special.fail ? '<div class="card-content" style="color:var(--seal-red)">❌ 失败：' + special.fail + '</div>' : '') +
+        (special.rule ? '<div class="card-content">📜 ' + special.rule + '</div>' : '') +
+        (special.privacy ? '<div class="card-content" style="color:var(--mo-wash)">🔒 ' + special.privacy + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  if (!role.initialSkills?.length && !special && !hostSkills.length) {
+    html += '<p style="text-align:center;color:var(--mo-wash);padding:20px;letter-spacing:2px">暂未获得技能卡</p>';
+  }
+  html += '</div></div>';
+
+  // --- Clues Panel ---
+  html += '<div class="tab-panel" id="panel-clues"><div class="card-grid">';
+  if (role.clues && role.clues.length > 0) {
+    role.clues.forEach(function(cl) {
+      var available = parseInt(cl.round) <= maxAct;
+      html += '<div class="game-card' + (available ? '' : ' card-locked') + '"' +
+        (available ? ' onclick="this.classList.toggle(\'flipped\')"' : '') + '>' +
+        '<div class="card-front">' +
+          '<div class="card-header"><span class="card-icon">🔍</span><span class="card-title">' + cl.id + ' · ' + cl.name + '</span></div>' +
+          '<div class="card-meta">第' + cl.round + '轮线索' + (available ? '' : '（未解锁）') + '</div>' +
+          (available ? '<div class="card-content" style="color:var(--mo-wash)">' + (cl.value || '点击查看详情') + '</div>' +
+          '<div class="card-flip-hint">点击卡片查看完整内容 ↓</div>' : '<div style="text-align:center;font-size:1.5em;padding:8px;opacity:0.4">🔒</div>') +
+        '</div>' +
+        (available ? '<div class="card-back">' +
+          '<div class="card-header"><span class="card-icon">🔍</span><span class="card-title">' + cl.id + ' · ' + cl.name + '</span></div>' +
+          '<div class="card-detail">' + escapeHtml(cl.content) + '</div>' +
+        '</div>' : '') +
+      '</div>';
+    });
+  }
+  // 主持人额外发放的线索
+  var hostClues = (serverState && serverState.hostActions && serverState.hostActions.cluesGiven && serverState.hostActions.cluesGiven[roleId]) || [];
+  hostClues.forEach(function(clId) {
+    var clue = GAME_DATA.clueExplore.find(function(c){return c.id===clId}) ||
+               GAME_DATA.clueBasic.find(function(c){return c.id===clId}) ||
+               GAME_DATA.cluePublic.find(function(c){return c.id===clId});
+    if (clue) {
+      html += '<div class="game-card" onclick="this.classList.toggle(\'flipped\')">' +
+        '<div class="card-front">' +
+          '<div class="card-header"><span class="card-icon">🎁</span><span class="card-title">' + clue.id + ' · ' + clue.name + '</span></div>' +
+          '<div class="card-meta">主持人发放</div>' +
+          '<div class="card-flip-hint">点击卡片查看完整内容 ↓</div>' +
+        '</div>' +
+        '<div class="card-back">' +
+          '<div class="card-header"><span class="card-icon">🎁</span><span class="card-title">' + clue.id + ' · ' + clue.name + '</span></div>' +
+          '<div class="card-detail">' + escapeHtml(clue.content || '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+  });
+  if (role.clues.length === 0 && !hostClues.length) {
+    html += '<p style="text-align:center;color:var(--mo-wash);padding:20px;letter-spacing:2px">暂未获得线索卡</p>';
+  }
+  html += '</div></div>';
+
+  // --- Silver Panel ---
+  var baseSilver = role.silver.total || 0;
+  var hostSilver = (serverState && serverState.hostActions && serverState.hostActions.silverGiven && serverState.hostActions.silverGiven[roleId]) || 0;
+  var totalSilver = baseSilver + hostSilver;
+
+  html += '<div class="tab-panel" id="panel-silver">' +
+    '<div class="silver-panel">' +
+      '<div class="silver-total-card">' +
+        '<div class="silver-total-amount">' + totalSilver + '</div>' +
+        '<div class="silver-total-unit">两 · 当前持有</div>' +
+        '<div class="silver-breakdown">' +
+          '<div class="silver-denom"><div class="silver-denom-val">' + (role.silver.one || 0) + '</div><div class="silver-denom-label">一两票</div></div>' +
+          (role.silver.five ? '<div class="silver-denom"><div class="silver-denom-val">' + role.silver.five + '</div><div class="silver-denom-label">五两票</div></div>' : '') +
+          (role.silver.ten ? '<div class="silver-denom"><div class="silver-denom-val">' + role.silver.ten + '</div><div class="silver-denom-label">十两票</div></div>' : '') +
+        '</div>' +
+        '<div class="silver-desc">' + role.silver.desc + '</div>' +
+        (hostSilver > 0 ? '<div style="color:var(--shi-lu);font-size:0.78em;margin-top:8px;letter-spacing:1px">✨ 主持人已发放：+' + hostSilver + '两</div>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="info-card">' +
+      '<div class="info-card-title">DM商店</div>' +
+      '<div style="font-size:0.75em;color:var(--mo-wash);margin-bottom:12px;letter-spacing:1px">商店开放：第一幕私聊后 → 第二幕公聊后关闭</div>' +
+      GAME_DATA.shopItems.map(function(item) {
+        return '<div class="host-shop-item">' +
+          '<span>' + item.name + '</span>' +
+          '<span style="color:var(--ni-jin)">' + item.price + '两</span>' +
+          '<span style="color:var(--mo-wash);font-size:0.78em">剩余' + item.stock + '件</span>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+  '</div>';
+
+  document.getElementById('roleContent').innerHTML = html;
+}
+
+function renderSkillCard(card, reason) {
+  return '<div class="game-card" onclick="this.classList.toggle(\'flipped\')">' +
+    '<div class="card-front">' +
+      '<div class="card-header"><span class="card-icon">◇</span><span class="card-title">' + card.name + '</span></div>' +
+      '<div class="card-meta">' + card.type + ' · ' + card.color + '底</div>' +
+      '<div class="card-content">' + card.desc + '</div>' +
+      (reason ? '<div style="font-size:0.72em;color:var(--mo-wash);margin-top:6px;letter-spacing:1px">💡 ' + reason + '</div>' : '') +
+      '<div class="card-flip-hint">点击查看限制规则 ↓</div>' +
+    '</div>' +
+    '<div class="card-back">' +
+      '<div class="card-header"><span class="card-icon">◇</span><span class="card-title">' + card.name + '</span></div>' +
+      '<div class="card-limit">' + card.limit + '</div>' +
+      '<div class="card-content" style="margin-top:8px">商店售价：' + card.price + '两 | 库存：' + card.stock + '张</div>' +
+    '</div>' +
+  '</div>';
+}
+
+// =============================================
+// Tab 切换
+// =============================================
+
+function switchTab(tabId, btn) {
+  var parent = btn.closest('.tab-bar') || btn.parentElement;
+  parent.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  var panel = document.getElementById('panel-' + tabId);
+  if (panel) panel.classList.add('active');
+}
+
+// =============================================
+// 幕次选择
+// =============================================
+
+function selectAct(roleId, actNum) {
+  currentAct[roleId] = String(actNum);
+  // 通知服务端
+  socket.emit('player_act_change', { roleId: roleId, act: String(actNum) });
+  renderRolePage(roleId);
+  setTimeout(function() {
+    var scriptTab = document.querySelector('.tab-btn:nth-child(2)');
+    if (scriptTab) switchTab('script', scriptTab);
+  }, 50);
+}
+
+// =============================================
+// 主持人控制台
+// =============================================
+
+function enterHost() {
+  if (!isConnected) { toast('未连接服务器，请等待连接...'); return; }
+  var pwd = prompt('请输入主持人密码：');
+  if (pwd) {
+    socket.emit('host_login', { password: pwd });
+  }
+}
+
+function renderHostPage() {
+  var maxAct = (serverState && serverState.maxAct) ? serverState.maxAct : 1;
+
+  var html = '<div class="host-panel">' +
+
+    // 连接状态
+    '<div style="text-align:center;font-size:0.75em;color:' + (isConnected ? 'var(--conn-green)' : 'var(--conn-red)') + ';margin-bottom:12px;letter-spacing:1px">' +
+      (isConnected ? '🟢 服务器在线 · 实时同步中' : '🔴 服务器离线 · 无法推送') +
+    '</div>' +
+
+    // 分幕推进
+    '<div class="host-section" style="border-top:none;margin-top:0;padding-top:0">' +
+      '<div class="host-section-title">分幕推进控制</div>' +
+      '<p style="font-size:0.82em;color:var(--mo-wash);margin-bottom:16px;letter-spacing:1px;text-align:center">' +
+        '当前进度：第' + ['一','二','三','四'][maxAct-1] + '幕 · ' + ['入局','寻踪','惊变','终局'][maxAct-1] +
+      '</p>' +
+      '<div class="host-acts-bar">';
+  for (var i = 1; i <= 4; i++) {
+    html += '<button class="host-act-step' + (i <= maxAct ? ' done' : '') +
+      (i === maxAct ? ' current' : '') + '"' +
+      ' onclick="hostPushAct(' + i + ')">' +
+      '第' + ['一','二','三','四'][i-1] + '幕<br>' + ['入局','寻踪','惊变','终局'][i-1] +
+    '</button>';
+  }
+  html += '</div></div>';
+
+  // 主持人手册
+  html += '<div class="host-section"><div class="host-section-title">主持人手册</div>';
+  GAME_DATA.hostManual.forEach(function(sec) {
+    html += '<details><summary>' + sec.title + '</summary><div class="host-text">' + escapeHtml(sec.content) + '</div></details>';
+  });
+  html += '</div>';
+
+  // 技能卡一览
+  html += '<div class="host-section"><div class="host-section-title">技能卡一览</div>';
+  GAME_DATA.skillCards.forEach(function(c) {
+    html += '<div style="padding:8px 0;border-bottom:1px solid rgba(139,125,107,0.1)">' +
+      '<span style="font-weight:bold;letter-spacing:1px">◇ ' + c.name + '</span>' +
+      '<span style="color:var(--mo-wash);font-size:0.78em;margin-left:8px">' + c.type + ' · ' + c.count + '张</span>' +
+      '<div style="font-size:0.8em;color:var(--mo-light);margin-top:4px">' + c.desc + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+
+  // 银票分配
+  html += '<div class="host-section"><div class="host-section-title">银票分配总览</div>';
+  GAME_DATA.roles.forEach(function(r) {
+    var base = r.silver.total || 0;
+    var hs = (serverState && serverState.hostActions && serverState.hostActions.silverGiven && serverState.hostActions.silverGiven[r.id]) || 0;
+    var isOnline = (serverState && serverState.taken && serverState.taken[r.id]);
+    html += '<div class="host-player-line">' +
+      '<span><span class="player-status ' + (isOnline ? 'online' : 'offline') + '"></span>' + r.emoji + ' ' + r.name + '</span>' +
+      '<span style="color:var(--ni-jin);font-weight:bold">' + (base + hs) + '两</span>' +
+    '</div>';
+  });
+  html += '</div>';
+
+  // 物品发放
+  html += '<div class="host-section"><div class="host-section-title">物品发放管理</div>' +
+    '<p style="font-size:0.78em;color:var(--mo-wash);margin-bottom:12px;letter-spacing:1px">点击角色发放银两/线索/技能（实时同步到玩家端）</p>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  GAME_DATA.roles.forEach(function(r) {
+    html += '<button style="padding:6px 10px;border:1px solid var(--cloud);background:transparent;color:var(--mo-ink);cursor:pointer;font-family:inherit;font-size:0.78em;letter-spacing:1px;transition:all .2s"' +
+      ' onclick="hostGiveToPlayer(\'' + r.id + '\')">' + r.emoji + ' ' + r.name + '</button>';
+  });
+  html += '</div></div>';
+
+  // 发送链接
+  html += '<div class="host-section"><div class="host-section-title">发送角色专属链接</div>' +
+    '<p style="font-size:0.78em;color:var(--mo-wash);margin-bottom:10px;letter-spacing:1px">链接含角色参数，打开后自动进入对应角色</p>' +
+    GAME_DATA.roles.map(function(r) {
+      return '<div class="host-player-line">' +
+        '<span>' + r.emoji + ' ' + r.name + '</span>' +
+        '<button style="padding:4px 12px;border:1px solid var(--ni-jin);background:transparent;color:var(--ni-jin);cursor:pointer;font-family:inherit;font-size:0.78em;letter-spacing:1px"' +
+        ' onclick="copyRoleLink(\'' + r.id + '\')">复制链接</button>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+
+  // 重置
+  html += '<div class="host-section" style="text-align:center">' +
+    '<button class="host-btn host-btn-warn" onclick="resetGame()">重置全场数据</button>' +
+  '</div>';
+
+  html += '</div>';
+  document.getElementById('hostContent').innerHTML = html;
+}
+
+function hostPushAct(act) {
+  if (!isConnected) { toast('未连接服务器'); return; }
+  socket.emit('host_push_act', { act: act });
+}
+
+function hostGiveToPlayer(roleId) {
+  if (!isConnected) { toast('未连接服务器'); return; }
+  var type = prompt('发放类型？（输入数字：1=银两，2=线索卡，3=技能卡）');
+  if (!type) return;
+
+  if (type === '1') {
+    var amount = parseInt(prompt('发放银两数量：')) || 0;
+    if (amount <= 0) { toast('请输入有效数量'); return; }
+    socket.emit('host_give', { roleId: roleId, type: 'silver', value: amount });
+  } else if (type === '2') {
+    var clueId = prompt('输入线索卡编号（如TS001）：');
+    if (!clueId) return;
+    socket.emit('host_give', { roleId: roleId, type: 'clue', value: clueId });
+  } else if (type === '3') {
+    var skName = prompt('输入技能卡名称：');
+    if (!skName) return;
+    socket.emit('host_give', { roleId: roleId, type: 'skill', value: skName });
+  }
+}
+
+function resetGame() {
+  if (!confirm('确定重置？所有角色选择和进度将被清除！')) return;
+  if (!confirm('再次确认：真的要清除所有游戏数据吗？')) return;
+  socket.emit('host_reset');
+}
+
+// =============================================
+// 分享与链接
+// =============================================
+
+function openShareModal() {
+  var list = document.getElementById('shareRoleList');
+  list.innerHTML = GAME_DATA.roles.map(function(r) {
+    return '<button class="modal-btn" onclick="copyRoleLink(\'' + r.id + '\')">' +
+      r.emoji + ' ' + r.name + ' · ' + r.publicId +
+    '</button>';
+  }).join('');
+  closeModal('shareModal');
+  setTimeout(function() { openModal('shareModal'); }, 100);
+}
+
+function copyRoleLink(roleId) {
+  var url = location.origin + location.pathname + '?role=' + roleId;
+  copyText(url);
+  var role = GAME_DATA.roles.find(function(r) { return r.id === roleId; });
+  toast('已复制 ' + (role ? role.name : roleId) + ' 的专属链接');
+}
+
+function copyRoomLink() {
+  var url = location.origin + location.pathname;
+  copyText(url);
+  toast('已复制房间邀请链接，发送给所有玩家');
+}
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function() { fallbackCopy(text); });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+// =============================================
+// 工具函数
+// =============================================
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+// =============================================
+// 微信分享设置
+// =============================================
+
+function setupWxShare() {
+  document.title = '闲酌序·沾花局 | 北宋古风剧本杀';
+}
+
+// =============================================
+// 启动
+// =============================================
+
+window.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(location.search);
+  var urlRoleId = params.get('role');
+
+  // 检查是否有已保存角色
+  if (!myRole && urlRoleId) {
+    // URL中有角色参数，但还没选过角色 → 尝试自动选择
+    myRole = ''; // 先不清除，等连接上后再选
+    // 存储以备后用
+    localStorage.setItem('zhj_pendingRole', urlRoleId);
+  }
+
+  showPage('pageCover');
+  setupWxShare();
+
+  // 连接建立后自动处理URL角色参数
+  if (urlRoleId && !myRole) {
+    var checkConnect = setInterval(function() {
+      if (isConnected && serverState) {
+        clearInterval(checkConnect);
+        var pending = localStorage.getItem('zhj_pendingRole');
+        if (pending) {
+          localStorage.removeItem('zhj_pendingRole');
+          socket.emit('select_role', { roleId: pending, force: false });
+        }
+      }
+    }, 500);
+    // 最多等10秒
+    setTimeout(function() { clearInterval(checkConnect); }, 10000);
+  }
+
+  // 恢复已有角色
+  if (myRole && GAME_DATA.roles.find(function(r){return r.id===myRole})) {
+    currentRole = myRole;
+    // 等连接建立
+    var check2 = setInterval(function() {
+      if (isConnected && serverState) {
+        clearInterval(check2);
+        socket.emit('select_role', { roleId: myRole, force: true });
+        currentAct[myRole] = (serverState.players && serverState.players[myRole])
+          ? (serverState.players[myRole].act || '1') : '1';
+        renderRolePage(currentRole);
+        showPage('pageRole');
+      }
+    }, 500);
+    setTimeout(function() { clearInterval(check2); }, 10000);
+  }
+
+  // 检查主持人登录
+  if (localStorage.getItem('zhj_hostLoggedIn') === '1') {
+    // 主持人状态不自动恢复，需要重新登录（安全考虑）
+    localStorage.removeItem('zhj_hostLoggedIn');
+  }
+
+  renderRoleGrid();
+});
+</script>
+</body>
+</html>
