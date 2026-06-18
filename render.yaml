@@ -1,0 +1,13 @@
+# Render Blueprint — 一键部署配置
+services:
+  - type: web
+    name: zhanhuaju
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
